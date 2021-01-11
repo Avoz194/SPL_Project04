@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
 
 def configParser(inputFile, repo):  # TODO: complete config_Parser
-    with open(inputFile) as inputfile:
+    with open(inputFile, encoding="utf-8" ) as inputfile:
         for i, line in inputfile: #TODO:insert new object using repository
             if i==0:
                 lineArray = line.split(',')
