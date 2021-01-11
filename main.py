@@ -11,7 +11,6 @@ def main(args):
     repo.create_tables()
     configParser(configPath, repo) #parse the config file
     ordersParser(ordersPath, outputPath, repo)
-    repo._close();
     atexit.register(repo._close)  # TODO: figure out what is this line
 
 
@@ -19,17 +18,17 @@ if __name__ == '__main__':
     main(sys.argv)
 
 
-def configParser(inputFile, repo):  # TODO: complete config_Parser
+def configParser(inputFile, repo):
     with open(inputFile) as inputfile:
-        for i, line in inputfile: #TODO:insert new object using repository
+        for i, line in inputfile: #TODO:does i counts in this case? behave as a counter?
             if i==0:
                 lineArray = line.split(',')
                 endOfVac = lineArray[0] # 3 : indexes 1 2 3
                 endOfSup = endOfVac+lineArray[1] # 3+1 : indexes 4
                 endOfClin = endOfSup +lineArray[2] # 4+2 : indexes 5 6
             if 0 < i <= endOfVac: #vaccines
-                lineArrayV = line.split(',')
-                repo.vaccines.insert(Vaccine(lineArrayV[0],lineArrayV[1],lineArrayV[2],lineArrayL[3]))
+                lineArrayV = line.split(',') #TODO: duplicate code, why not just split the line once?
+                repo.vaccines.insert(Vaccine(lineArrayV[0],lineArrayV[1],lineArrayV[2],lineArrayL[3])) #TODO: I think it's better to use the syntax they showed - *lineArrayV
             if endOfVac < i <= endOfSup: #suppliar
                 lineArrayS = line.split(',')
                 repo.suppliers.insert(Supplier(lineArrayS[0],lineArrayS[1],lineArrayS[2]))
@@ -41,7 +40,7 @@ def configParser(inputFile, repo):  # TODO: complete config_Parser
                 repo.logistics.insert(Logistic(lineArrayL[0],lineArrayL[1],lineArrayL[2],lineArrayL[3]))
     inputfile.close()
 
-def ordersParser(inputFile, outputPath, repo):  # TODO: complete config_Parser
+def ordersParser(inputFile, outputPath, repo):
     with open(inputFile) as inputfile:
         for line in inputfile:
             lineArray = line.split(',')
@@ -49,7 +48,6 @@ def ordersParser(inputFile, outputPath, repo):  # TODO: complete config_Parser
                 repo.send_Shipment(*lineArray)
             if len(lineArray) ==3:
                 repo.receive_Shipment(*lineArray)
-            # TODO:insert new line to the output file
             logArray = repo.action_log()
             with open(outputPath, "w") as outputFile:
                 outputFile.write(','.join(logArray))
@@ -133,18 +131,18 @@ class _Repository:
             id             INT     PRIMARY KEY,
             name           TEXT    NOT NULL,
             count_sent     INT     NOT NULL,
-            count_received INT     NOT NULL
+            count_received INT     NOT NULL 
         );
     """)
 
-    def receive_Shipment(self, name, amount, date):
-        self.logistics.incCountRecived(amount,self.suppliers.getSupId(name))
-        self.vaccines.insert(Vaccine( id,date, self.suppliers.getSupId(name), amount))
+    def receive_Shipment(self, supname, amount, date):
+        self.logistics.incCountRecived(amount,self.suppliers.getSupId(supname)) #TODO: why do you call the DB for supID twice? also why supID nd not logistics
+        self.vaccines.insert(Vaccine( id,date, self.suppliers.getSupId(supname), amount)) #TODO: what is id here?
 
     def send_Shipment(self, location, amount):
         self.clinics.reduceDemend(amount,location)
         self.vaccines.removeAmount(amount)
-        self.logistics.incCountSent(amount,self.clinics.getSupId(location))
+        self.logistics.incCountSent(amount,self.clinics.getSupId(location)) #TODO: why supID here? you should look for the logistics id
 
     def action_log(self): # what is that ?
 
@@ -160,17 +158,21 @@ class _Vaccines:
                INSERT INTO vaccines (id, date, supplier, quantity) VALUES (?, ?, ?, ?);""", [vaccine.id, vaccine.date, vaccine.supplier, vaccine.quantity])
 
     #recursive method if amount > from the id 1 demand than remove the demand from amount and check all again
-    # if amount< the id 1 demand than remove the amount from the deman
+    # if amount< the id 1 demand than remove the amount from the demand
+
+    #TODO: Must we use recursive function here? you call the DB and pull again and again instead of pulling the data once
+    #TODO: make sure we pull based on the correct order (we need to sort by DATE or something
     def removeAmount(self,amount):
         cursor = self._conn.execute("""
-                      SELECT column_name =demand FROM vaccines """)
+                      SELECT column_name =demand FROM vaccines """)  #TODO:syntax doesn't require column_name, just demand, also why demand? its not a fields in the table?
         curr_inventory = cursor.fetchone()[0]
         if curr_inventory<amount:
             self._conn.execute("""
-                           DELETE from vaccine where id = 1 """)
+                           DELETE from vaccine where id = 1 """)   #TODO: why ID=1
             self.removeAmount(amount-curr_inventory)
+            #TODO:else?
         update_inventory = curr_inventory-amount
-        self._conn.execute("""UPDATE vaccines SET demand = %d WHERE id=1 """ % update_inventory)
+        self._conn.execute("""UPDATE vaccines SET demand = %d WHERE id=1 """ % update_inventory) #TODO: demand is not a field in the DB, why id=1?
         self._conn.commit()
 
 
@@ -185,7 +187,7 @@ class _Suppliers:
         """, [supplier.id, supplier.name, supplier.logistic])
 
     #get the suplier's name id
-    def getSupId(self, name):
+    def getSupId(self, name):  #TODO:why supiID and return logistics?
         cursor = self._conn.execute("""
                   SELECT logistics FROM suppliers WHERE name=%d""" % name)
         return cursor.fetchone()[0]
@@ -202,7 +204,7 @@ class _Clinics:
         """, [clinic.id, clinic.location, clinic.demand, clinic.logistic])
 
     # get the suplier's location id
-    def getSupId(self,location):
+    def getSupId(self,location):  #TODO:why supiID and return logistics?
         cursor = self._conn.execute("""
                SELECT logistics FROM clinics WHERE location=%d""" % location)
         return cursor.fetchone()[0]
@@ -211,7 +213,8 @@ class _Clinics:
     def reduceDemend(self ,amount, location):
         cursor = self._conn.execute("""
                        SELECT demand FROM clinics WHERE location=%d""" % location)
-        self._conn.execute("""UPDATE clinucs SET demand = %s WHERE locatyin= %d """ % (cursor-amount, location))
+        #TODO: Don't you need to fetch one first?
+        self._conn.execute("""UPDATE clinics SET demand = %s WHERE location= %d """ % (cursor-amount, location)) #TODO: cursur is the running q with the result, not an actual number
         self._conn.commit()
 
 
@@ -230,13 +233,13 @@ class _Logistics:
 
     #increase the count_recived/count_sent by amount
     def incCountRecived(self, amount, logId):
-        cr = self._conn.execute('SELECT count_received FROM logistics WHERE id=%d' % logId)
+        cr = self._conn.execute('SELECT count_received FROM logistics WHERE id=%d' % logId)  #TODO: why ' and not """ ?
         logistic_id_cr = cr.fetchone()[0]
         new_logistic_id_cr = logistic_id_cr + amount
         self._conn.execute("""UPDATE logistics SET count_received = %s WHERE id= %d """ %(new_logistic_id_cr,logId))
         self._conn.commit()
     def incCountSent(self, amount, logId):
-        cr = self._conn.execute('SELECT count_sent FROM logistics WHERE id=%d' % logId)
+        cr = self._conn.execute('SELECT count_sent FROM logistics WHERE id=%d' % logId) #TODO: why ' and not """ ?
         logistic_id_cs = cr.fetchone()[0]
         new_logistic_id_cs = logistic_id_cs + amount
         self._conn.execute("""UPDATE logistics SET count_sent = %s WHERE id= %d """ % (new_logistic_id_cs, logId))
