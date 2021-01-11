@@ -1,3 +1,4 @@
+import atexit
 import sys
 import sqlite3
 
@@ -20,8 +21,25 @@ if __name__ == '__main__':
 
 def configParser(inputFile, repo):  # TODO: complete config_Parser
     with open(inputFile) as inputfile:
-        for line in inputfile:
-            #TODO:insert new object using repository
+        for i, line in inputfile: #TODO:insert new object using repository
+            if i==0:
+                lineArray = line.split(',')
+                endOfVac = lineArray[0] # 3 : indexes 1 2 3
+                endOfSup = endOfVac+lineArray[1] # 3+1 : indexes 4
+                endOfClin = endOfSup +lineArray[2] # 4+2 : indexes 5 6
+            if 0 < i <= endOfVac: #vaccines
+                lineArrayV = line.split(',')
+                repo.vaccines.insert(Vaccine(lineArrayV[0],lineArrayV[1],lineArrayV[2],lineArrayL[3]))
+            if endOfVac < i <= endOfSup: #suppliar
+                lineArrayS = line.split(',')
+                repo.suppliers.insert(Supplier(lineArrayS[0],lineArrayS[1],lineArrayS[2]))
+            if endOfSup < i <= endOfClin: #clincs
+                lineArrayC = line.split(',')
+                repo.clinics.insert(Clinic(lineArrayC[0],lineArrayC[1],lineArrayC[2],lineArrayC[3]))
+            if i > endOfClin: #logistics
+                lineArrayL = line.split(',')
+                repo.logistics.insert(Logistic(lineArrayL[0],lineArrayL[1],lineArrayL[2],lineArrayL[3]))
+    inputfile.close()
 
 def ordersParser(inputFile, outputPath, repo):  # TODO: complete config_Parser
     with open(inputFile) as inputfile:
