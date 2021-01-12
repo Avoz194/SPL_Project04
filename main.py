@@ -133,18 +133,21 @@ class _Repository:
 
     def receive_Shipment(self, supname, amount, date):
         logId = self.suppliers.getLogId(supname)
-        self.logistics.incCountRecived(amount,logId)
-        self.vaccines.insert(Vaccine( self.vaccines.maxId()+1,date, logId, amount))
+        self.logistics.incCountRecived(amount, logId)
+        self.vaccines.insert(Vaccine(self.vaccines.maxId()+1, date, logId, amount))
 
     def send_Shipment(self, location, amount):
-        logId = self.suppliers.getLogId(location)
-        self.clinics.reduceDemend(amount,location)
+        logId = self.clinics.getLogId(location)
+        self.clinics.reduceDemend(amount, location)
         self.vaccines.removeAmount(amount)
-        self.logistics.incCountSent(amount,self.clinics.getLogId(location))
+        self.logistics.incCountSent(amount, logId)
 
-    def action_log(self): # what is that ?
-
-
+    def action_log(self):
+        totalInven = self.vaccines.total_inventory()
+        totalDema = self.clinics.total_demand()
+        totalRec = self.suppliers.total_recevied()
+        totalSent = self.suppliers.total_sent()
+        return [totalInven, totalDema, totalSent, totalRec]
 # DAO
 
 class _Vaccines:
@@ -161,32 +164,29 @@ class _Vaccines:
                               SELECT MAX(id) FROM vaccines """)
         return cursor.fetchone()[0]
 
-    #TODO: Must we use recursive function here? you call the DB and pull again and again instead of pulling the data once
-    #TODO: make sure we pull based on the correct order (we need to sort by DATE or something
-    def removeAmount(self,amount):
+    def removeAmount(self, amount):
         amount_clone=amount
         index = 0
         size = self.size()
         cursor = self._conn.execute("""
-                      SELECT id,quantity FROM clinics ORDER BY date """)
-        while index != size:
+                      SELECT id,quantity FROM vaccines ORDER BY date """)
+        while index != size and len(cursor)!=0 and index!= self.maxId()+1 :
             curr_inventory = cursor.fetchone()[index]
             if amount_clone>curr_inventory[1]:
                 self._conn.execute("""
                                            DELETE from vaccine where id = curr_inventory[0] """)
-                self.removeAmount(amount - curr_inventory[1])
-            else
+                amount_clone = amount_clone - curr_inventory[1]
+            else:
                 update_inventory = curr_inventory - amount
                 self._conn.execute(
                     """UPDATE vaccines SET quantity = %d WHERE id=curr_inventory[0] """ % update_inventory)
-                self._conn.commit()
-            index+=1
+            index += 1
         self._conn.commit()
 
-    def size(self):
-        cursor = self._conn.execute("""
-                              SELECT COUNT(*) FROM clinics """)
+    def total_inventory(self):
+        cursor = self._conn.execute("""SELECT SUM(quantity) FROM vaccines """)
         return cursor.fetchone()[0]
+
 
 
 
@@ -199,7 +199,7 @@ class _Suppliers:
                 INSERT INTO suppliers (id, name, logistics) VALUES (?, ?, ?)
         """, [supplier.id, supplier.name, supplier.logistic])
 
-    #get the logistics's id from suplier name
+    # get the logistics's id from suplier name
     def getLogId(self, name):
         cursor = self._conn.execute("""
                   SELECT logistics FROM suppliers WHERE name=%d""" % name)
@@ -216,7 +216,6 @@ class _Clinics:
             INSERT INTO clinics (id, location, demand, logistic) VALUES (?, ?, ?,?)
         """, [clinic.id, clinic.location, clinic.demand, clinic.logistic])
 
-
     def getLogId(self, location):
         cursor = self._conn.execute("""
                   SELECT logistics FROM clinics WHERE location=%d""" % location)
@@ -230,6 +229,14 @@ class _Clinics:
         self._conn.execute("""UPDATE clinics SET demand = %s WHERE location= %d """ % (curr_inventory, location)) #TODO: cursur is the running q with the result, not an actual number
         self._conn.commit()
 
+    def size(self):
+        cursor = self._conn.execute("""
+                              SELECT COUNT(*) FROM clinics """)
+        return cursor.fetchone()[0]
+
+    def total_demand(self):
+        cursor = self._conn.execute("""SELECT SUM(demand) FROM clinics """)
+        return cursor.fetchone()[0]
 
 class _Logistics:
     def __init__(self, conn):
@@ -241,22 +248,28 @@ class _Logistics:
         """, [logistic.id, logistic.name, logistic.count_sent, logistic.count_received])
 
     def getLogId(self,name):
-        logId = self._conn.execute('SELECT id FROM logistics WHERE name=%d' % name)  # TODO: why ' and not """ ?
+        logId = self._conn.execute("""SELECT id FROM logistics WHERE name=%d""" % name)  # TODO: why ' and not """ ?
         return logId.fetchone()[0]
-
 
     #increase the count_recived/count_sent by amount
     def incCountRecived(self, amount, logId):
-        cr = self._conn.execute('SELECT count_received FROM logistics WHERE id=%d' % logId)  #TODO: why ' and not """ ?
+        cr = self._conn.execute("""SELECT count_received FROM logistics WHERE id=%d""" % logId)  #TODO: why ' and not """ ?
         logistic_id_cr = cr.fetchone()[0]
         new_logistic_id_cr = logistic_id_cr + amount
         self._conn.execute("""UPDATE logistics SET count_received = %s WHERE id= %d """ %(new_logistic_id_cr,logId))
         self._conn.commit()
+
     def incCountSent(self, amount, logId):
-        cr = self._conn.execute('SELECT count_sent FROM logistics WHERE id=%d' % logId) #TODO: why ' and not """ ?
+        cr = self._conn.execute("""SELECT count_sent FROM logistics WHERE id=%d""" % logId) #TODO: why ' and not """ ?
         logistic_id_cs = cr.fetchone()[0]
         new_logistic_id_cs = logistic_id_cs + amount
         self._conn.execute("""UPDATE logistics SET count_sent = %s WHERE id= %d """ % (new_logistic_id_cs, logId))
         self._conn.commit()
 
+    def total_recevied(self):
+        cursor = self._conn.execute("""SELECT SUM(count_received) FROM logistics """)
+        return cursor.fetchone()[0]
 
+    def total_sent(self):
+        cursor = self._conn.execute("""SELECT SUM(count_sent) FROM logistics """)
+        return cursor.fetchone()[0]
