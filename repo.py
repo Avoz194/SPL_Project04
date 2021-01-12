@@ -1,6 +1,7 @@
 import sqlite3
 import atexit
 import dto
+import os  #TODO: delete
 
 
 # DAOs
@@ -32,7 +33,7 @@ class _Vaccines:
                 amount_clone = 0
         self._conn.commit()
 
-    # def remove_amount(self, amount):
+    # def remove_amount(self, amount):  #TODO: delete
     #    amount_clone = amount
     #    index = 0
     #    size = self.size()
@@ -142,6 +143,11 @@ class _Logistics:
 # The Repository
 class _Repository:
     def __init__(self):
+        try:
+            os.remove('./database.db') #TODO:remove
+            os.remove('./output.txt') #TODO:remove
+        except OSError as e:
+            print("no delete")
         self._conn = sqlite3.connect('database.db')
         self.vaccines = _Vaccines(self._conn)
         self.suppliers = _Suppliers(self._conn)

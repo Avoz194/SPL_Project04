@@ -3,6 +3,7 @@ import repo as rep
 import dto
 
 
+
 def config_parser(inputFile, repo):
     with open(inputFile, encoding="utf-8") as inputfile:
         i = 0
