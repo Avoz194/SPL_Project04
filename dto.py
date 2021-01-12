@@ -1,4 +1,3 @@
-
 # DTOs Section
 class Vaccine:
     def __init__(self, id, date, supplier, quantity):
