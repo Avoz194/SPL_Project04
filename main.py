@@ -25,16 +25,20 @@ def config_parser(inputFile, repo):
 
 def orders_parser(inputfile, outputpath, repo):
     with open(inputfile, encoding="utf-8") as inputfile:
-        for line in inputfile:
-            line_array = line.split(',')
-            if len(line_array) == 2:
-                repo.send_shipment(*line_array)
-            if len(line_array) == 3:
-                repo.receive_shipment(*line_array)
-            log_array = repo.action_log()
-            with open(outputpath, "w") as outputFile:
-                outputFile.write(','.join(log_array))
-                outputFile.close()
+        firstWrite=True
+        with open(outputpath, "w") as outputFile:
+            for line in inputfile:
+                line_array = line.split(',')
+                if len(line_array) == 2:
+                    repo.send_shipment(*line_array)
+                if len(line_array) == 3:
+                    repo.receive_shipment(*line_array)
+                log_array = repo.action_log()
+                if(firstWrite):
+                    outputFile.write(','.join(log_array))
+                    firstWrite=False
+                else:
+                    outputFile.write("\n"+ ','.join(log_array))
 
 
 def main(args):

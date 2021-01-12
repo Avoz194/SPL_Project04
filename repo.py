@@ -198,7 +198,6 @@ class _Repository:
 
     def send_shipment(self, location, amount):
         logId = self.clinics.find(location).logistic
-        print(logId)
         self.clinics.reduce_demand(int(amount), location)
         self.vaccines.remove_amount(int(amount))
         self.logistics.inc_count_sent(int(amount), logId)
@@ -206,9 +205,9 @@ class _Repository:
     def action_log(self):
         inventory = self.vaccines.total_inventory()
         demand = self.clinics.total_demand()
-        sent = self.logistics.total_sent()
         received = self.logistics.total_received()
-        return [str(inventory), str(demand), str(sent), str(received)]
+        sent = self.logistics.total_sent()
+        return [str(inventory), str(demand), str(received), str(sent)]
 
 
 repo = _Repository()
