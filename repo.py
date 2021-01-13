@@ -33,23 +33,6 @@ class _Vaccines:
                 amount_clone = 0
         self._conn.commit()
 
-    # def remove_amount(self, amount):  #TODO: delete
-    #    amount_clone = amount
-    #    index = 0
-    #    size = self.size()
-    #    c = self._conn.cursor()
-    #    c.execute("""SELECT id,quantity FROM vaccines ORDER BY date """)
-    #    while index != size and len(c) != 0 and index != self.max_id() + 1:
-    #        curr_inventory = c.fetchone()[index]
-    #        if amount_clone > curr_inventory[1]:
-    #            c.execute("""DELETE from vaccine where id =?""" [curr_inventory[0]])
-    #            amount_clone = amount_clone - curr_inventory[1]
-    #        else:
-    #            update_inventory = curr_inventory - amount
-    #            c.execute("""UPDATE vaccines SET quantity =? WHERE id=? """, [update_inventory, curr_inventory[0]])
-    #        index += 1
-    #    self._conn.commit()
-
     def total_inventory(self):
         c = self._conn.cursor()
         c.execute("""SELECT SUM(quantity) FROM vaccines """)
@@ -197,10 +180,11 @@ class _Repository:
     """)
 
     def receive_shipment(self, supname, amount, date):
-        logId = self.suppliers.find(supname).logistic
+        sup = self.suppliers.find(supname)
+        logId = sup.logistic
         self.logistics.inc_count_received(int(amount), logId)
         id_to_add = self.vaccines.max_id() + 1
-        self.vaccines.insert(dto.Vaccine(id_to_add, date, logId, int(amount)))
+        self.vaccines.insert(dto.Vaccine(id_to_add, date, sup.id, int(amount)))
 
     def send_shipment(self, location, amount):
         logId = self.clinics.find(location).logistic
